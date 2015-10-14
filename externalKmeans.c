@@ -6,22 +6,13 @@
 #define memBlock 1024*1024
 #define lineMem 1024
 #define delims ","
-double **M;
-unsigned long delimIndex;
-unsigned long colAmt;
-unsigned long rowAmt;
-unsigned long fileSize;
-FILE *inputFile;
-char* buffer;
 
-
-
-void readBlock(){
-  delimIndex = 0;
-  int i, j;
+unsigned long readBlock(double *M, FILE* inputFile, unsigned long fileSize, unsigned long rowAmt, unsigned long colAmt, char* buffer){
+  unsigned long delimIndex = 0;
+  int i=0, j=0;
   double inputDouble;
   char *charInput;
-  for(i=0;i<rowAmt;++i){
+/*  for(i=0;i<rowAmt;++i){
       if(ftell(inputFile) == fileSize){
         break;
       }
@@ -33,7 +24,10 @@ void readBlock(){
         charInput = strtok(NULL, delims);
       }
    }
+*/
+  return 2;
 }
+/*
 double euclidDist(double* p1, double* p2, int dim){
   double accumulator=0;
   int i;
@@ -67,36 +61,34 @@ int centerDiff(double*** centers, double tol, int k, int dim){
   else
     return 0;
 }
-
+*/
 int main(int argc, char* argv[]){
-  char *tempChar;
-  buffer = malloc(lineMem);
-  delimIndex = 0;
+
+  FILE *inputFile; //done
+  char *buffer, *tempChar; //done
+  unsigned int i=0, j=0, k=atoi(argv[2]), l=0, closePoint=0; //done
+  unsigned long colAmt=0, rowAmt=0, delimIndex=0, fileSize=0; //done
+  double *M, *centers, *centerWeights; //done
+
   inputFile = fopen(argv[1], "r");
-  int i, j, k=atoi(argv[2]), l, closePoint;
-  unsigned long firstIndex=0;
-  double **centers[2];
-  double *centerWeights[2];
-//  centerWeights = (double**) malloc(sizeof(double*)*2);
-//  centers = (double***) malloc(sizeof(double**)*2);
-  centers[0] = (double**) malloc(sizeof(double*)*k);
-  centers[1] = (double**) malloc(sizeof(double*)*k);
+  buffer = malloc(lineMem);
   fgets(buffer, memBlock, inputFile);
   tempChar = strtok(buffer, delims);
   while(tempChar != NULL){
     ++colAmt;
     tempChar = strtok(NULL, delims);
   }
+  rowAmt = memBlock/(sizeof(double)*colAmt);
   fseek(inputFile, 0, SEEK_END);
   fileSize = ftell(inputFile);
   rewind(inputFile);
-  rowAmt = memBlock/(sizeof(double)*colAmt);
-  M = malloc(sizeof(double**)*rowAmt);
-  for(i=0; i< rowAmt; ++i)
-    M[i] = malloc(sizeof(double)*colAmt);
-  readBlock();
-  centerWeights[0] = malloc(sizeof(double)*colAmt);
-  centerWeights[1] = malloc(sizeof(double)*colAmt);
+  M = (double*) malloc(sizeof(double)*rowAmt*colAmt);
+  centers = (double*) malloc(sizeof(double)*2*k*colAmt);
+  centerWeights = (double*) malloc(sizeof(double)*2*k);
+
+
+  readBlock(M, inputFile, fileSize, rowAmt, colAmt, buffer);
+/*
   for(i=0; i<k; ++i){
     centers[0][i] = malloc(sizeof(double)*colAmt);
     centers[1][i] = malloc(sizeof(double)*colAmt);
@@ -130,5 +122,5 @@ int main(int argc, char* argv[]){
       printf(" %lf", centers[j%2][i][l]);
   }
   printf("\n");
-  return 1;
+*/  return 1;
 }
