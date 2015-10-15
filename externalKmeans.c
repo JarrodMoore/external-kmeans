@@ -4,7 +4,7 @@
 #include <malloc.h>
 #include <math.h>
 #include <time.h>
-#define memBlock 1024*1024*1024
+#define memBlock 1024*1024
 #define lineMem 1024
 #define delims ","
 
@@ -94,9 +94,10 @@ int main(int argc, char* argv[]){
   for(i=0; i<k; ++i){
     centerWeights1[i] = 0;
     centerWeights2[i] = 0;
-    memmove(centers1+(i*colAmt), M+(((rand()+rand())%rowAmt)*colAmt), sizeof(double)*colAmt);
+    memmove(centers1+(i*colAmt), M+((rand())%delimIndex)*colAmt, sizeof(double)*colAmt);
     memmove(centers2+(i*colAmt), centers1+(i*colAmt), sizeof(double)*colAmt);
   }
+
   for(n=0; n<10; ++n){
     j=0;
     do{
@@ -122,7 +123,7 @@ int main(int argc, char* argv[]){
       centerWeights1 = centerWeights2;
       centerWeights2 = centerWeightsTemp;
     }while(centerDiff(centers1, centers2, .0001, k, colAmt));
-    
+
   }
   for(i=0; i<k; ++i){
     printf("\nCenter %lu:", i+1);
