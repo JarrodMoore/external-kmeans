@@ -1,2 +1,2 @@
 ALL:
-	gcc -g tmp.c -lm
+	gcc -g externalKmeans.c -o extKmeans -lm
