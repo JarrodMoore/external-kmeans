@@ -4,40 +4,54 @@
 #include <malloc.h>
 #include <math.h>
 #include <time.h>
-#define memBlock 1024*1024
+#include <sys/stat.h>
+#include <fcntl.h>
+#define memBlock 1024*2
 #define lineMem 1024
-#define delims ","
+#define iterLimit 1000
+#define delims ",\n"
 
-unsigned long readBlock(double *M, FILE* inputFile, unsigned long fileSize, unsigned long rowAmt, unsigned long colAmt, char* buffer){
-  unsigned long delimIndex = 0;
-  unsigned long i=0, j=0;
-  double inputDouble;
-  char *charInput;
-  for(i=0;i<rowAmt;++i){
-      if(ftell(inputFile) == fileSize){
-        break;
-      }
-      fgets(buffer, lineMem, inputFile);
-      ++delimIndex;
-      charInput = strtok(buffer, delims);
-      for(j = 0; j<colAmt; ++j){
-        M[(i*colAmt)+j] = atof(charInput);
-        charInput = strtok(NULL, delims);
-      }
-   }
-  return delimIndex;
+int fillBuffer(FILE* inputFile, unsigned long fileSize, char* buffer){
+  unsigned int lastRead = 0, breakMe = 0;
+  unsigned long readAmt=0, readLen=0;
+  unsigned long p=0, q=0, r=0;
+  readAmt = memBlock - sizeof(char);
+        if(readAmt > (fileSize - ftell(inputFile))){
+          readAmt = fileSize - ftell(inputFile);
+          lastRead = 1;
+        }
+        readLen = fread(buffer, sizeof(char),  readAmt,  inputFile);
+        buffer[readLen] = '\0';
+        if(!lastRead){
+          for(p = strlen(buffer)-1; p>=0; --p){
+            for(r=0; r<strlen(delims); ++r){
+              if(buffer[p] == delims[r]){
+                buffer[p] = '\0';
+                breakMe = 1;
+                break;
+              }
+            }
+            if(breakMe){
+              breakMe = 0;
+              break;
+            }
+          }
+          q = readLen-p-1;
+          fseek(inputFile, -q, SEEK_CUR);
+        }
+  return lastRead;
 }
 
-double euclidDist(double* p1, double* p2, unsigned long dim){
+double euclidDist(double* p1, double* p2, long dim){
   double accumulator=0;
-  unsigned long i;
+  long i;
   for(i=0; i<dim; ++i)
     accumulator+=pow(p1[i]-p2[i], 2);
   return sqrt(accumulator);
 }
 
-int findClosest(double* p1, double* centers, unsigned long dim, unsigned long k){
-  unsigned long closest = 0, i;
+int findClosest(double* p1, double* centers, long dim, long k){
+  long closest = 0, i;
   double minDist=0, testDist=0;
   minDist = euclidDist(p1, centers, dim);
   for(i=1; i<k; ++i){
@@ -50,7 +64,7 @@ int findClosest(double* p1, double* centers, unsigned long dim, unsigned long k)
   return closest;
 }
 
-int centerDiff(double* centers1, double* centers2, double tol, unsigned long k, unsigned long dim){
+int centerDiff(double* centers1, double* centers2, double tol, long k, long dim){
   long i;
   double accum=0;
   for(i=0; i<k; ++i){
@@ -62,111 +76,120 @@ int centerDiff(double* centers1, double* centers2, double tol, unsigned long k, 
     return 0;
 }
 
-int main(int argc, char* argv[]){
-//Variable Declorations
-  FILE *inputFile; //done
-  char *buffer, *tempChar; //done
-  unsigned long i=0, j=0, k=atoi(argv[2]), l=0, closePoint=0, n=0; //done
-  unsigned long colAmt=0, rowAmt=0, delimIndex=0, fileSize=0; //done
-  double *M, *centers1, *centers2, *centersTemp, *centerWeights1, *centerWeights2, *centerWeightsTemp; //done
 
+
+
+
+int main(int argc, char* argv[]){
+  FILE *inputFile; //done
+  int fileInt = 0, breakMe = 0, lastRead = 0, iter2 = -2;
+  char *buffer, *tmpChar; //done
+  long i=0, j=0, p=0, r=0, n=0, l=0, readLen=0, colAmt=0, rowAmt=0, fileSize=0, readAmt=0, k=atoi(argv[2]);
+  long closePoint = 0;
+  long q=0, iterCount = 0;
+  double *M, *centers1, *centers2, *tmpCenters, *centerWeights; //done
 //Variable allocation and initialization
   inputFile = fopen(argv[1], "r");
-  buffer = malloc(lineMem);
+  buffer = malloc(memBlock);
+  M = malloc(memBlock);
+  srand(time(NULL));
   fgets(buffer, memBlock, inputFile);
-  tempChar = strtok(buffer, delims);
-  while(tempChar != NULL){
+  tmpChar = strtok(buffer, delims);
+  while(tmpChar != NULL){
     ++colAmt;
-    tempChar = strtok(NULL, delims);
+    tmpChar = strtok(NULL, delims);
   }
   rowAmt = memBlock/(sizeof(double)*colAmt);
   fseek(inputFile, 0, SEEK_END);
   fileSize = ftell(inputFile);
   rewind(inputFile);
-  M = (double*) malloc(sizeof(double)*rowAmt*colAmt);
   centers1 = (double*) malloc(sizeof(double)*k*colAmt);
   centers2 = (double*) malloc(sizeof(double)*k*colAmt);
-  centerWeights1 = (double*) malloc(sizeof(double)*k);
-  centerWeights2 = (double*) malloc(sizeof(double)*k);
-  srand(time(NULL));
-
-  delimIndex = readBlock(M, inputFile, fileSize, rowAmt, colAmt, buffer);
-  for(i=0; i<k; ++i){
-    centerWeights1[i] = 0;
-    centerWeights2[i] = 0;
-    memmove(centers1+(i*colAmt), M+((rand())%delimIndex)*colAmt, sizeof(double)*colAmt);
-    memmove(centers2+(i*colAmt), centers1+(i*colAmt), sizeof(double)*colAmt);
-  }
-
-  for(n=0; n<10; ++n){
-    j=0;
-    do{
-      for(i=0; i< k; ++i)
-        centerWeights2[i] = 0;
-      do{
-        for(i=0; i< delimIndex; ++i){
-          closePoint = findClosest(M+(i*colAmt), centers1, colAmt, k);
-          for(l=0; l<colAmt; ++l){
-             centers2[closePoint*colAmt+l] = ((centers2[closePoint*colAmt+l]
-                * centerWeights2[closePoint]) + M[i*colAmt + l]) / (centerWeights2[closePoint] +1);
-          }
-          ++centerWeights2[closePoint];
+  centerWeights = (double*) malloc(sizeof(double)*k);
+/*******SEEDING**********************/
+  tmpChar = NULL;
+  lastRead = 0;
+  do{
+    fillBuffer(inputFile, fileSize, buffer);
+    for(i=0;i<(rowAmt*colAmt); ++i){
+      if(tmpChar == NULL){
+        if(lastRead){
+          breakMe=1;
+          break;
         }
-        delimIndex = readBlock(M, inputFile, fileSize, rowAmt, colAmt, buffer); 
-      }while(ftell(inputFile) != fileSize);
-      rewind(inputFile);
-      ++j;
-      centersTemp = centers1;
+        else{
+          lastRead  = fillBuffer(inputFile, fileSize, buffer);
+          tmpChar = strtok(buffer, delims);
+        }
+      }
+      M[i] = atof(tmpChar);
+      tmpChar = strtok(NULL, delims);
+    }
+  }while(i<(rowAmt*colAmt) && !breakMe);
+  breakMe = 0;
+  for(j=0; j<k; ++j){
+    centerWeights[j] = 0;
+    memmove(centers1+(j*colAmt), M+((rand()%(i/colAmt))*colAmt), sizeof(double)*colAmt);
+    memmove(centers2+(j*colAmt), centers1+(j*colAmt), sizeof(double)*colAmt);
+  }
+
+/********CLUSTERING**********************/  
+  rewind(inputFile);
+  tmpChar = NULL;
+  lastRead = 0;
+  breakMe = 0;
+  iterCount = 0;
+  for(n=0; n<10; ++n){
+    do{
+      do{
+        for(i=0;i<(rowAmt*colAmt); ++i){
+          if(tmpChar == NULL){
+            if(lastRead){
+              breakMe=1;
+              break;
+            }
+            else{
+              printf("%zu : %lu\r", ftell(inputFile), fileSize);
+              lastRead  = fillBuffer(inputFile, fileSize, buffer);
+              tmpChar = strtok(buffer, delims);
+            }
+          }
+          M[i] = atof(tmpChar);
+          tmpChar = strtok(NULL, delims);
+        }
+        for(j=0; j<(i/colAmt); ++j){
+          closePoint = findClosest(M+(j*colAmt), centers1, colAmt, k);
+          for(l=0; l<colAmt; ++l){
+            centers2[closePoint*colAmt+l] = ((centers2[closePoint*colAmt+l]
+                * centerWeights[closePoint]) + M[j*colAmt + l]) / (centerWeights[closePoint] +1);
+          }
+          ++centerWeights[closePoint];
+        }
+      }while(!breakMe);
+/*******PRINT CENTERS************************
+      printf("---CENTERS---\n");
+      for(j=0;j<k; ++j){
+        printf("%lu: ", j+1);
+        for(l=0; l<colAmt; ++l)
+          printf("%f ", centers2[j*colAmt + l]);
+        printf("\n");
+      }  
+********************************************/
+      for(i=0;i<k;++i)
+        centerWeights[i] = 0;
+      tmpCenters = centers1;
       centers1 = centers2;
-      centers2 = centersTemp;
-      centerWeightsTemp = centerWeights1;
-      centerWeights1 = centerWeights2;
-      centerWeights2 = centerWeightsTemp;
+      centers2 = tmpCenters;
+      breakMe = 0;
+      lastRead = 0;
+      rewind(inputFile);
+      ++iterCount;
+      if(iterCount > iterLimit){
+        printf("ITERLIMITBREAK\n");
+        break;
+      }
     }while(centerDiff(centers1, centers2, .0001, k, colAmt));
-
   }
-  for(i=0; i<k; ++i){
-    printf("\nCenter %lu:", i+1);
-    for(l=0; l<colAmt; ++l)
-      printf(" %lf", centers1[i*colAmt + l]);
-  }
-  printf("\n");
-  fclose(inputFile); 
-
-/*Print Center Weights
-  for(i=0;i<k;++i)
-    printf(" %f", centerWeights1[i]);
-  printf("\n");
-  for(i=0;i<k;++i)
-    printf(" %f", centerWeights1[i]);
-  printf("\n");
-*/
-/*Print Centers
-  for(i=0; i<k; ++i){
-    for(j=0; j<colAmt;++j)
-      printf(" %f", centers1[i*colAmt+j]);
-    printf("\n");
-  }
-  for(i=0; i<k; ++i){
-    for(j=0; j<colAmt;++j)
-      printf(" %f", centers2[i*colAmt+j]);
-    printf("\n");
-  }
-*/
-
-/*Print Current Matrix
-  for(i=0;i<rowAmt;++i){
-    for(j=0;j<colAmt;++j)
-      printf(" %f", M[i*colAmt+j]);
-    printf("\n");
-  }
-*/
   free(buffer);
-  free(M);
-  free(centers1);
-  free(centers2);
-  free(centerWeights1);
-  free(centerWeights2);
-
   return 1;
 }
