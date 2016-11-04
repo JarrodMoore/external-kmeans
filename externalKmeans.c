@@ -6,8 +6,8 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#define memBlock 1024*2
-#define lineMem 1024
+#define memBlock 1024
+#define lineMem 512
 #define iterLimit 1000
 #define delims ",\n"
 
@@ -82,11 +82,11 @@ int centerDiff(double* centers1, double* centers2, double tol, long k, long dim)
 
 int main(int argc, char* argv[]){
   FILE *inputFile; //done
-  int fileInt = 0, breakMe = 0, lastRead = 0, iter2 = -2;
+  int breakMe = 0, lastRead = 0;
   char *buffer, *tmpChar; //done
-  long i=0, j=0, p=0, r=0, n=0, l=0, readLen=0, colAmt=0, rowAmt=0, fileSize=0, readAmt=0, k=atoi(argv[2]);
+  long i=0, j=0, n=0, l=0, colAmt=0, rowAmt=0, fileSize=0, k=atoi(argv[2]);
   long closePoint = 0;
-  long q=0, iterCount = 0;
+  long iterCount = 0;
   double *M, *centers1, *centers2, *tmpCenters, *centerWeights; //done
 //Variable allocation and initialization
   inputFile = fopen(argv[1], "r");
@@ -197,6 +197,12 @@ int main(int argc, char* argv[]){
       printf("%f ", centers2[j*colAmt + l]);
     printf("\n");
   }
+
+  fclose(inputFile);
   free(buffer);
+  free(M);
+  free(centers1);
+  free(centers2);
+  free(centerWeights);
   return 1;
 }

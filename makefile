@@ -1,2 +1,2 @@
 ALL:
-	gcc -g externalKmeans.c -o extKmeans -lm
+	gcc -g -Wall -pedantic externalKmeans.c -o extKmeans -lm
